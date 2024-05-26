@@ -106,7 +106,7 @@ def api_check(folder: str, apis: dict) -> list[str]:
 def main():
     to_check: list[str, dict[str, str]] = []
 
-    for _, folder in enumerate(folders):
+    for folder in folders:
         if folder in IGNORE_FOLDERS + IGNORE_CHAINS:
             continue
 
