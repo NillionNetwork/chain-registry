@@ -36,16 +36,16 @@ TIMEOUT_SECONDS = 10
 
 # endpoint_type == 'rpc' or 'rest'
 def remove_endpoint(folder: str, endpoint_url, endpoint_type: str, iter_num: int = 0):
-    chain_dir = os.path.join(parent_dir, folder, f"chain.json")
+    chain_dir = os.path.join(parent_dir, folder, "chain.json")
 
     if iter_num > 25:
         print(f"ISSUE: {folder} {endpoint_type} {endpoint_url}")
         return
 
-    with open(chain_dir, "r") as f:
+    with open(chain_dir, "r", encoding="utf-8") as f:
         try:
             chain_data = json.load(f)
-        except Exception as e:
+        except json.JSONDecodeError:
             # multiprocessing 'patch'
             time.sleep(rand.uniform(0.1, 5.0))
             remove_endpoint(folder, endpoint_url, endpoint_type, iter_num + 1)
@@ -66,7 +66,7 @@ def remove_endpoint(folder: str, endpoint_url, endpoint_type: str, iter_num: int
     ]
     chain_data["apis"] = apis
 
-    with open(chain_dir, "w") as f:
+    with open(chain_dir, "w", encoding="utf-8") as f:
         json.dump(chain_data, f, indent=2, ensure_ascii=False)
 
 
@@ -89,7 +89,7 @@ def do_last_time(folder, _type, addr, last_time_endpoints):
 
 def api_check(folder: str, apis: dict) -> list[str]:
     tasks = []
-    res = requests.get(f"https://status.cosmos.directory/{folder}").json()
+    res = requests.get(f"https://status.cosmos.directory/{folder}", timeout=2_000).json()
 
     for _type in ["rpc", "rest"]:
         last_time_endpoints = res[_type]["current"]
@@ -106,7 +106,7 @@ def api_check(folder: str, apis: dict) -> list[str]:
 def main():
     to_check: list[str, dict[str, str]] = []
 
-    for idx, folder in enumerate(folders):
+    for folder in folders:
         if folder in IGNORE_FOLDERS + IGNORE_CHAINS:
             continue
 
@@ -114,11 +114,12 @@ def main():
         if not os.path.exists(path):
             continue
 
-        try:
-            apis: dict = json.loads(open(path).read())
-        except Exception:
-            print(f"[!] {folder} chain.json issue")
-            continue
+        with open(path, "r", encoding="utf-8") as f:
+            try:
+                apis: dict = json.loads(f.read())
+            except json.JSONDecodeError:
+                print(f"[!] {folder} chain.json issue")
+                continue
 
         apis = apis.get("apis", {})  # rpc, rest, grpc
 
